@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X — Drone Solutions</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Barlow:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+
+:root{
+  --black:#080808;
+  --off-black:#111;
+  --dark:#1a1a1a;
+  --mid:#2e2e2e;
+  --wire:#3a3a3a;
+  --dim:#666;
+  --muted:#999;
+  --light:#ccc;
+  --white:#f0f0f0;
+  --amber:#f5a623;
+  --amber-dim:#7a5010;
+  --amber-mid:rgba(245,166,35,0.45);
+  --amber-faint:rgba(245,166,35,0.06);
+  --amber-glow:rgba(245,166,35,0.18);
+}
+
+body{background:var(--black);color:var(--light);font-family:'Barlow',sans-serif;font-weight:300;overflow-x:hidden;cursor:crosshair;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none;z-index:9999;}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:18px 48px;background:rgba(8,8,8,0.93);backdrop-filter:blur(8px);border-bottom:1px solid var(--wire);}
+.nav-logo{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:.15em;color:var(--white);text-decoration:none;}
+.nav-links{display:flex;gap:36px;list-style:none;}
+.nav-links a{font-family:'Share Tech Mono',monospace;font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none;transition:color .2s;position:relative;}
+.nav-links a::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:1px;background:var(--white);transition:width .2s;}
+.nav-links a:hover{color:var(--white);}
+.nav-links a:hover::after{width:100%;}
+.nav-cta{font-family:'Share Tech Mono',monospace;font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:var(--black);background:var(--white);border:none;padding:10px 22px;cursor:crosshair;transition:background .2s,color .2s;}
+.nav-cta:hover{background:var(--dim);color:var(--white);}
+
+#hero{min-height:100vh;position:relative;overflow:hidden;background:#050400;display:flex;flex-direction:column;justify-content:flex-end;}
+#hero::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 70% at 50% 45%,transparent 25%,rgba(0,0,0,0.82) 100%);pointer-events:none;z-index:2;}
+#hud-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:1;}
+
+.hud-overlay{position:absolute;inset:0;z-index:3;pointer-events:none;font-family:'Share Tech Mono',monospace;color:var(--amber);}
+.hud-corner{position:absolute;width:44px;height:44px;border-color:rgba(245,166,35,.5);border-style:solid;}
+.hud-corner.tl{top:76px;left:22px;border-width:2px 0 0 2px;}
+.hud-corner.tr{top:76px;right:22px;border-width:2px 2px 0 0;}
+.hud-corner.bl{bottom:22px;left:22px;border-width:0 0 2px 2px;}
+.hud-corner.br{bottom:22px;right:22px;border-width:0 2px 2px 0;}
+
+.hud-topbar{position:absolute;top:84px;left:72px;right:72px;display:flex;justify-content:space-between;align-items:center;font-size:.57rem;letter-spacing:.25em;text-transform:uppercase;color:var(--amber-dim);border-bottom:1px solid rgba(245,166,35,.1);padding-bottom:7px;}
+.hud-topbar .live{color:var(--amber);display:flex;align-items:center;gap:6px;}
+.hud-topbar .live::before{content:'';width:5px;height:5px;background:var(--amber);border-radius:50%;box-shadow:0 0 6px var(--amber);animation:blink-a 1.4s ease-in-out infinite;}
+@keyframes blink-a{0%,100%{opacity:1;}50%{opacity:.1;}}
+
+.hud-telem-left{position:absolute;top:50%;left:28px;transform:translateY(-50%);display:flex;flex-direction:column;gap:20px;}
+.hud-telem-right{position:absolute;top:50%;right:28px;transform:translateY(-50%);display:flex;flex-direction:column;gap:20px;align-items:flex-end;}
+.telem-block{display:flex;flex-direction:column;gap:2px;}
+.telem-label{font-size:.48rem;letter-spacing:.3em;text-transform:uppercase;color:var(--amber-dim);}
+.telem-value{font-size:1.05rem;letter-spacing:.08em;color:var(--amber);text-shadow:0 0 12px rgba(245,166,35,.5);}
+.telem-bar{width:56px;height:2px;background:rgba(245,166,35,.12);margin-top:4px;position:relative;overflow:hidden;}
+.telem-bar-fill{position:absolute;top:0;left:0;height:100%;background:var(--amber);box-shadow:0 0 5px var(--amber);}
+
+.hud-reticle{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);width:160px;height:160px;}
+.reticle-ring{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(245,166,35,.22);animation:spin 22s linear infinite;}
+.reticle-ring::before{content:'';position:absolute;top:-1px;left:50%;transform:translateX(-50%);width:5px;height:5px;background:var(--amber);border-radius:50%;box-shadow:0 0 8px var(--amber);}
+.reticle-inner{position:absolute;inset:22px;border-radius:50%;border:1px solid rgba(245,166,35,.13);animation:spin 13s linear infinite reverse;}
+.reticle-ch{position:absolute;top:50%;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(245,166,35,.35) 30%,rgba(245,166,35,.35) 70%,transparent);transform:translateY(-50%);}
+.reticle-cv{position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(180deg,transparent,rgba(245,166,35,.35) 30%,rgba(245,166,35,.35) 70%,transparent);transform:translateX(-50%);}
+.reticle-dot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:4px;height:4px;background:var(--amber);border-radius:50%;box-shadow:0 0 12px var(--amber),0 0 24px rgba(245,166,35,.4);}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+
+.hud-ladder{position:absolute;right:96px;top:50%;transform:translateY(-50%);height:190px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;}
+.ladder-tick{display:flex;align-items:center;gap:6px;font-size:.48rem;letter-spacing:.1em;color:var(--amber-dim);}
+.ladder-tick::after{content:'';display:block;width:14px;height:1px;background:rgba(245,166,35,.25);}
+.ladder-tick.active{color:var(--amber);font-size:.62rem;}
+.ladder-tick.active::after{width:22px;background:var(--amber);box-shadow:0 0 5px var(--amber);}
+
+.hud-statusbar{position:absolute;bottom:28px;left:72px;right:72px;display:flex;justify-content:space-between;align-items:center;font-size:.53rem;letter-spacing:.18em;text-transform:uppercase;color:var(--amber-dim);border-top:1px solid rgba(245,166,35,.08);padding-top:7px;}
+.status-pill{border:1px solid rgba(245,166,35,.3);padding:3px 10px;color:var(--amber);font-size:.48rem;letter-spacing:.2em;}
+
+.hero-content{position:relative;z-index:4;padding:0 48px 68px;}
+.hero-tag{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.32em;color:var(--amber-dim);text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:12px;animation:fadeup .9s ease both;}
+.hero-tag::before{content:'';display:block;width:22px;height:1px;background:var(--amber-dim);}
+.hero-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(4rem,11vw,11rem);line-height:.88;color:var(--white);letter-spacing:.02em;text-shadow:0 0 80px rgba(245,166,35,.07);animation:fadeup .9s .1s ease both;}
+.hero-title em{font-style:normal;color:transparent;-webkit-text-stroke:1px rgba(245,166,35,.28);}
+.hero-sub{margin-top:26px;display:flex;align-items:flex-end;justify-content:space-between;animation:fadeup .9s .2s ease both;}
+.hero-desc{max-width:390px;font-size:.88rem;line-height:1.8;color:var(--muted);}
+.hero-stats{display:flex;gap:36px;align-items:flex-end;}
+.stat{text-align:right;}
+.stat-num{font-family:'Share Tech Mono',monospace;font-size:1.7rem;color:var(--amber);line-height:1;text-shadow:0 0 18px rgba(245,166,35,.4);}
+.stat-label{font-family:'Share Tech Mono',monospace;font-size:.5rem;letter-spacing:.2em;color:var(--amber-dim);text-transform:uppercase;margin-top:4px;}
+.hero-scroll{position:absolute;bottom:72px;right:48px;z-index:4;font-family:'Share Tech Mono',monospace;font-size:.53rem;letter-spacing:.2em;color:var(--amber-dim);text-transform:uppercase;writing-mode:vertical-rl;animation:fadeup .9s .4s ease both;}
+.hero-scroll::after{content:'';display:block;width:1px;height:44px;background:var(--amber-dim);margin:9px auto 0;animation:scrollln 2s ease-in-out infinite;}
+@keyframes scrollln{0%{transform:scaleY(0);transform-origin:top;}50%{transform:scaleY(1);transform-origin:top;}51%{transform:scaleY(1);transform-origin:bottom;}100%{transform:scaleY(0);transform-origin:bottom;}}
+@keyframes fadeup{from{opacity:0;transform:translateY(28px);}to{opacity:1;transform:translateY(0);}}
+
+section{padding:110px 48px;position:relative;}
+.section-label{font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.28em;color:var(--dim);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:14px;}
+.section-label::before{content:'';display:block;width:28px;height:1px;background:var(--wire);}
+.section-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.8rem,5.5vw,5.5rem);line-height:1;color:var(--white);letter-spacing:.02em;margin-bottom:60px;}
+
+#services{background:var(--off-black);border-top:1px solid var(--wire);border-bottom:1px solid var(--wire);}
+.services-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--wire);}
+.service-card{background:var(--off-black);padding:52px 44px;position:relative;overflow:hidden;transition:background .3s;}
+.service-card:hover{background:var(--dark);}
+.service-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:0;background:var(--white);transition:height .4s ease;}
+.service-card:hover::before{height:100%;}
+.service-num{font-family:'Bebas Neue',sans-serif;font-size:4.5rem;color:var(--wire);line-height:1;margin-bottom:28px;transition:color .3s;}
+.service-card:hover .service-num{color:var(--mid);}
+.service-name{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:.04em;color:var(--white);margin-bottom:18px;}
+.service-desc{font-size:.88rem;line-height:1.8;color:var(--muted);margin-bottom:28px;}
+.service-tags{display:flex;flex-wrap:wrap;gap:7px;}
+.tag{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);border:1px solid var(--wire);padding:4px 9px;}
+
+#about{background:var(--black);}
+.about-layout{display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:start;}
+.about-text p{font-size:.92rem;line-height:1.9;color:var(--muted);margin-bottom:22px;}
+.about-text p strong{color:var(--light);font-weight:600;}
+.about-creds{border:1px solid var(--wire);padding:36px;}
+.creds-title{font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin-bottom:28px;padding-bottom:14px;border-bottom:1px solid var(--wire);}
+.cred-item{display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid var(--off-black);}
+.cred-item:last-child{border-bottom:none;}
+.cred-dot{width:5px;height:5px;background:var(--white);margin-top:7px;flex-shrink:0;}
+.cred-text{font-size:.82rem;line-height:1.6;color:var(--light);}
+.cred-sub{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.1em;color:var(--dim);margin-top:3px;}
+.team-block{margin-top:72px;padding-top:72px;border-top:1px solid var(--wire);}
+.team-card{display:inline-flex;align-items:center;gap:28px;border:1px solid var(--wire);padding:28px 36px;max-width:460px;}
+.team-avatar{width:60px;height:60px;background:var(--dark);border:1px solid var(--wire);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.avatar-initials{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--dim);letter-spacing:.1em;}
+.team-info-name{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--white);letter-spacing:.05em;}
+.team-info-role{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;margin-top:3px;}
+.team-info-desc{font-size:.8rem;color:var(--muted);margin-top:9px;line-height:1.6;}
+
+#contact{background:var(--off-black);border-top:1px solid var(--wire);}
+.contact-layout{display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:start;}
+.contact-info p{font-size:.92rem;line-height:1.9;color:var(--muted);margin-bottom:36px;}
+.contact-detail{display:flex;flex-direction:column;gap:14px;}
+.contact-line{display:flex;gap:14px;align-items:center;}
+.contact-line-label{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);width:78px;flex-shrink:0;}
+.contact-line-val{font-size:.82rem;color:var(--light);}
+.status-badge{display:inline-flex;align-items:center;gap:7px;font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);border:1px solid var(--wire);padding:5px 12px;margin-bottom:28px;}
+.status-dot{width:5px;height:5px;background:var(--white);border-radius:50%;animation:blink-w 2s ease-in-out infinite;}
+@keyframes blink-w{0%,100%{opacity:1;}50%{opacity:.15;}}
+.form-group{margin-bottom:20px;}
+.form-label{display:block;font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--dark);border:1px solid var(--wire);color:var(--light);padding:12px 14px;font-family:'Barlow',sans-serif;font-size:.88rem;font-weight:300;outline:none;transition:border-color .2s;cursor:crosshair;-webkit-appearance:none;appearance:none;border-radius:0;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--muted);}
+.form-textarea{resize:vertical;min-height:110px;}
+.form-submit{width:100%;background:var(--white);color:var(--black);border:none;padding:15px;font-family:'Share Tech Mono',monospace;font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;cursor:crosshair;transition:background .2s,color .2s;margin-top:6px;}
+.form-submit:hover{background:var(--muted);}
+.form-note{font-family:'Share Tech Mono',monospace;font-size:.56rem;letter-spacing:.1em;color:var(--wire);margin-top:14px;}
+
+footer{background:var(--black);border-top:1px solid var(--wire);padding:36px 48px;display:flex;justify-content:space-between;align-items:center;}
+.footer-logo{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.15em;color:var(--dim);}
+.footer-copy{font-family:'Share Tech Mono',monospace;font-size:.55rem;letter-spacing:.14em;color:var(--wire);text-transform:uppercase;}
+.footer-links{display:flex;gap:28px;list-style:none;}
+.footer-links a{font-family:'Share Tech Mono',monospace;font-size:.55rem;letter-spacing:.14em;text-transform:uppercase;color:var(--wire);text-decoration:none;transition:color .2s;}
+.footer-links a:hover{color:var(--muted);}
+
+.reveal{opacity:0;transform:translateY(36px);transition:opacity .8s ease,transform .8s ease;}
+.reveal.visible{opacity:1;transform:translateY(0);}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#hero" class="nav-logo">X</a>
+  <ul class="nav-links">
+    <li><a href="#services">Services</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <button class="nav-cta" onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})">Request Briefing</button>
+</nav>
+
+<section id="hero">
+  <canvas id="hud-canvas"></canvas>
+  <div class="hud-overlay">
+    <div class="hud-corner tl"></div>
+    <div class="hud-corner tr"></div>
+    <div class="hud-corner bl"></div>
+    <div class="hud-corner br"></div>
+    <div class="hud-topbar">
+      <span>SYS: NOMINAL</span>
+      <span class="live" id="hud-time">00:00:00Z</span>
+      <span>RPAS // ADVANCED OPS</span>
+      <span>CA-REG // PSPC</span>
+    </div>
+    <div class="hud-telem-left">
+      <div class="telem-block"><div class="telem-label">Alt (m)</div><div class="telem-value" id="t-alt">120.4</div><div class="telem-bar"><div class="telem-bar-fill" style="width:62%"></div></div></div>
+      <div class="telem-block"><div class="telem-label">Spd (km/h)</div><div class="telem-value" id="t-spd">87.2</div><div class="telem-bar"><div class="telem-bar-fill" style="width:45%"></div></div></div>
+      <div class="telem-block"><div class="telem-label">Hdg</div><div class="telem-value" id="t-hdg">247&#176;</div><div class="telem-bar"><div class="telem-bar-fill" style="width:68%"></div></div></div>
+    </div>
+    <div class="hud-telem-right">
+      <div class="telem-block" style="align-items:flex-end"><div class="telem-label">Battery</div><div class="telem-value">94%</div><div class="telem-bar"><div class="telem-bar-fill" style="width:94%"></div></div></div>
+      <div class="telem-block" style="align-items:flex-end"><div class="telem-label">Signal</div><div class="telem-value">-58dBm</div><div class="telem-bar"><div class="telem-bar-fill" style="width:82%"></div></div></div>
+      <div class="telem-block" style="align-items:flex-end"><div class="telem-label">Mode</div><div class="telem-value">AUTO</div></div>
+    </div>
+    <div class="hud-reticle">
+      <div class="reticle-ring"></div>
+      <div class="reticle-inner"></div>
+      <div class="reticle-ch"></div>
+      <div class="reticle-cv"></div>
+      <div class="reticle-dot"></div>
+    </div>
+    <div class="hud-ladder">
+      <div class="ladder-tick">140</div>
+      <div class="ladder-tick">130</div>
+      <div class="ladder-tick active">120 &#9664;</div>
+      <div class="ladder-tick">110</div>
+      <div class="ladder-tick">100</div>
+    </div>
+    <div class="hud-statusbar">
+      <span>GPS: LOCKED // 14 SAT</span>
+      <span class="status-pill">SYSTEMS ACTIVE</span>
+      <span>45.4215&#176;N 75.6972&#176;W</span>
+    </div>
+  </div>
+  <div class="hero-content">
+    <div class="hero-tag">Canadian Drone Operations &mdash; Est. 2025</div>
+    <h1 class="hero-title">AERIAL<br><em>DOMINANCE</em></h1>
+    <div class="hero-sub">
+      <p class="hero-desc">Precision mapping, surveying, and counter-drone interception for Canadian government and defence clients. Certified. Compliant. Mission-ready.</p>
+      <div class="hero-stats">
+        <div class="stat"><div class="stat-num">02</div><div class="stat-label">Capabilities</div></div>
+        <div class="stat"><div class="stat-num">TC</div><div class="stat-label">Adv. Certified</div></div>
+        <div class="stat"><div class="stat-num">CA</div><div class="stat-label">Operations</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-scroll">Scroll</div>
+</section>
+
+<section id="services">
+  <div class="section-label reveal">Services</div>
+  <h2 class="section-title reveal">CAPABILITIES</h2>
+  <div class="services-grid reveal">
+    <div class="service-card">
+      <div class="service-num">01</div>
+      <div class="service-name">Mapping &amp; Surveying</div>
+      <p class="service-desc">High-resolution aerial mapping and surveying for DND installations, border zones, and critical infrastructure. Georeferenced orthomosaics, 3D terrain models, and volumetric analysis compliant with federal geospatial standards.</p>
+      <div class="service-tags"><span class="tag">Orthomosaics</span><span class="tag">3D Terrain</span><span class="tag">Volumetric</span><span class="tag">ISR Support</span><span class="tag">Infrastructure</span></div>
+    </div>
+    <div class="service-card">
+      <div class="service-num">02</div>
+      <div class="service-name">Counter-Drone Interception</div>
+      <p class="service-desc">Detection, tracking, and interception of unauthorized or hostile UAS in protected Canadian airspace. Serving military installations, critical infrastructure operators, and major event security within full Transport Canada and DND legal frameworks.</p>
+      <div class="service-tags"><span class="tag">C-UAS</span><span class="tag">Detection</span><span class="tag">Neutralization</span><span class="tag">Airspace Security</span><span class="tag">Incident Reports</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="about">
+  <div class="section-label reveal">About</div>
+  <h2 class="section-title reveal">WHO WE ARE</h2>
+  <div class="about-layout">
+    <div class="about-text reveal">
+      <p>X is a Canadian drone services company built for the demands of government and defence. We operate where precision matters and failure is not an option &mdash; from remote terrain surveys to live airspace interception.</p>
+      <p><strong>We are not a generalist drone company.</strong> Every capability we offer is purpose-built for federal clients: DND, RCMP, CBSA, Public Safety Canada, and the defence contractors who support them.</p>
+      <p>Founded by a certified RPAS operator with hands-on field experience, X combines technical expertise with a deep understanding of Canadian government procurement &mdash; making us a reliable partner from first RFI to contract delivery.</p>
+      <div class="team-block">
+        <div class="section-label" style="margin-bottom:20px;">Founding Operator</div>
+        <div class="team-card">
+          <div class="team-avatar"><div class="avatar-initials">OP</div></div>
+          <div>
+            <div class="team-info-name">Founder &amp; Lead Operator</div>
+            <div class="team-info-role">RPAS Pilot &mdash; Advanced Certified</div>
+            <div class="team-info-desc">Transport Canada Advanced Certificate holder. Specializes in defence-sector UAS operations, counter-drone deployment, and geospatial data collection.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="about-creds reveal">
+      <div class="creds-title">Certifications &amp; Compliance</div>
+      <div class="cred-item"><div class="cred-dot"></div><div><div class="cred-text">Transport Canada Advanced RPAS Certificate</div><div class="cred-sub">SFOC-capable &mdash; controlled &amp; restricted airspace</div></div></div>
+      <div class="cred-item"><div class="cred-dot"></div><div><div class="cred-text">Registered Canadian Business Entity</div><div class="cred-sub">Active GST/HST registration &mdash; federal invoicing ready</div></div></div>
+      <div class="cred-item"><div class="cred-dot"></div><div><div class="cred-text">PSPC Procurement Business Number</div><div class="cred-sub">CanadaBuys registered &mdash; federal tender eligible</div></div></div>
+      <div class="cred-item"><div class="cred-dot"></div><div><div class="cred-text">Canadian Aviation Regulations (CARs) Part IX</div><div class="cred-sub">Full compliance &mdash; RPAS operations</div></div></div>
+      <div class="cred-item"><div class="cred-dot"></div><div><div class="cred-text">Commercial Liability Insurance</div><div class="cred-sub">Meets federal contractor minimums</div></div></div>
+      <div class="cred-item"><div class="cred-dot"></div><div><div class="cred-text">Controlled Goods Program (CGP) Compliant</div><div class="cred-sub">Defence-sector work authorization</div></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div class="section-label reveal">Contact</div>
+  <h2 class="section-title reveal">REQUEST A BRIEFING</h2>
+  <div class="contact-layout">
+    <div class="contact-info reveal">
+      <p>Whether you're a procurement officer, programme manager, or prime contractor, we're ready to discuss how X can support your next mission. All enquiries are handled with full confidentiality.</p>
+      <div class="status-badge"><div class="status-dot"></div>Accepting new engagements</div>
+      <div class="contact-detail">
+        <div class="contact-line"><span class="contact-line-label">Email</span><span class="contact-line-val">ops@xdronesolutions.ca</span></div>
+        <div class="contact-line"><span class="contact-line-label">Region</span><span class="contact-line-val">Canada &mdash; Regional Operations</span></div>
+        <div class="contact-line"><span class="contact-line-label">Procurement</span><span class="contact-line-val">CanadaBuys / PSPC Registered</span></div>
+        <div class="contact-line"><span class="contact-line-label">Response</span><span class="contact-line-val">Within 24 hours</span></div>
+      </div>
+    </div>
+    <div class="reveal">
+      <div class="form-group"><label class="form-label">Full Name</label><input type="text" class="form-input" placeholder="Name"></div>
+      <div class="form-group"><label class="form-label">Organization</label><input type="text" class="form-input" placeholder="Agency / Company"></div>
+      <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" placeholder="email@domain.ca"></div>
+      <div class="form-group">
+        <label class="form-label">Area of Interest</label>
+        <select class="form-select">
+          <option value="" disabled selected>Select service</option>
+          <option>Mapping &amp; Surveying</option>
+          <option>Counter-Drone Interception</option>
+          <option>Airspace Security Assessment</option>
+          <option>Subcontracting / Partnership</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Message</label><textarea class="form-textarea" placeholder="Briefly describe your requirement or enquiry..."></textarea></div>
+      <button class="form-submit">Transmit Enquiry</button>
+      <div class="form-note">All communications are treated as confidential. No information is shared without consent.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">X</div>
+  <div class="footer-copy">&copy; 2025 X Drone Solutions &mdash; Canada &mdash; All rights reserved</div>
+  <ul class="footer-links">
+    <li><a href="#services">Services</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+</footer>
+
+<script>
+var reveals=document.querySelectorAll('.reveal');
+var obs=new IntersectionObserver(function(entries){entries.forEach(function(e,i){if(e.isIntersecting){setTimeout(function(){e.target.classList.add('visible');},i*80);}});},{threshold:0.1});
+reveals.forEach(function(el){obs.observe(el);});
+
+function updateClock(){var n=new Date();var el=document.getElementById('hud-time');if(el)el.textContent=[n.getUTCHours(),n.getUTCMinutes(),n.getUTCSeconds()].map(function(v){return String(v).padStart(2,'0');}).join(':')+' Z';}
+setInterval(updateClock,1000);updateClock();
+
+function rnd(a,b){return(Math.random()*(b-a)+a).toFixed(1);}
+setInterval(function(){
+  var a=document.getElementById('t-alt');var s=document.getElementById('t-spd');var h=document.getElementById('t-hdg');
+  if(a)a.textContent=rnd(118,123);if(s)s.textContent=rnd(84,91);if(h)h.textContent=(Math.floor(Math.random()*6)+244)+'\u00b0';
+},1800);
+
+var canvas=document.getElementById('hud-canvas');
+var ctx=canvas.getContext('2d');
+function resize(){canvas.width=canvas.offsetWidth;canvas.height=canvas.offsetHeight;}
+resize();window.addEventListener('resize',function(){resize();build();});
+
+function shape(cx,cy,sc){
+  var p=[];
+  for(var i=0;i<80;i++){var t=i/80;var x=cx+(t-0.5)*260*sc;var w=18*sc*Math.sin(Math.PI*t);p.push({x:x+(Math.random()-0.5)*w*0.4,y:cy+(Math.random()-0.5)*w});}
+  [-1,1].forEach(function(s){
+    for(var i=0;i<120;i++){var t=i/120;var wx=cx-20*sc+t*(-200*sc);var sw=s*60*sc*Math.pow(t,0.6);var th=14*sc*(1-t);p.push({x:wx+(Math.random()-0.5)*th,y:cy+sw+(Math.random()-0.5)*th});}
+    for(var i=0;i<40;i++){var t=i/40;p.push({x:cx+80*sc+t*60*sc,y:cy+s*20*sc+s*t*22*sc+(Math.random()-0.5)*6*sc});}
+  });
+  return p;
+}
+
+var pts=[];
+function build(){
+  var cx=canvas.width*0.52,cy=canvas.height*0.42,sc=Math.min(canvas.width,canvas.height)/900;
+  pts=shape(cx,cy,sc).map(function(p){return{x:p.x,y:p.y,ox:p.x,oy:p.y,sz:Math.random()*1.8+0.4,al:Math.random()*0.5+0.3,sp:Math.random()*0.008+0.003,ph:Math.random()*Math.PI*2};});
+}
+build();
+
+var fr=0;
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='rgba(245,166,35,0.04)';ctx.lineWidth=1;
+  for(var x=0;x<canvas.width;x+=50){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+  for(var y=0;y<canvas.height;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  var sy=(fr*0.8)%canvas.height;
+  var g=ctx.createLinearGradient(0,sy-40,0,sy+4);
+  g.addColorStop(0,'rgba(245,166,35,0)');g.addColorStop(1,'rgba(245,166,35,0.05)');
+  ctx.fillStyle=g;ctx.fillRect(0,sy-40,canvas.width,44);
+  pts.forEach(function(p){
+    p.x=p.ox+Math.sin(fr*p.sp+p.ph)*1.2;p.y=p.oy+Math.cos(fr*p.sp+p.ph)*0.6;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);
+    ctx.fillStyle='rgba(245,166,35,'+p.al+')';
+    ctx.shadowBlur=p.sz>1.4?6:0;ctx.shadowColor='rgba(245,166,35,0.6)';
+    ctx.fill();
+  });
+  ctx.shadowBlur=0;fr++;requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>
